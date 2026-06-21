@@ -40,6 +40,10 @@
   }
   header .title{ font-size:18px; font-weight:700; letter-spacing:.3px; }
   header .sub{ font-size:12px; opacity:.85; margin-top:2px; }
+  .fsbtn{ position:absolute; top:calc(12px + var(--safe-t)); right:14px;
+    background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff;
+    border-radius:9px; padding:7px 12px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; }
+  .fsbtn:hover{ background:rgba(255,255,255,.28); }
 
   section{ background:var(--card); margin:10px; border-radius:14px; padding:14px 14px 6px;
             box-shadow:0 1px 4px rgba(20,30,60,.06); }
@@ -134,27 +138,76 @@
   /* ---- Wide screens / iPad landscape: two columns, no scrolling ---- */
   @media (min-width:820px){
     body{ padding-bottom:calc(96px + var(--safe-b)); }
-    .wrap{ max-width:1120px; }
+    .wrap{ max-width:1500px; }
     .cols{ display:grid; grid-template-columns:1fr 1fr; gap:0; align-items:start; }
-    .colR{ position:sticky; top:calc(96px + var(--safe-t)); }
+    #page-wb .colR{ position:sticky; top:calc(96px + var(--safe-t)); }
     header .title{ font-size:22px; }
     .stn .wbox{ width:210px; }
     .stn .wbox.single{ width:130px; }
     .stn .name b{ font-size:16px; }
+    .prow .i{ width:150px; }
     /* roomier result bar centered to content width */
-    .resultbar .row{ max-width:1120px; margin:0 auto; }
+    .resultbar .row{ max-width:1500px; margin:0 auto; }
     .metric .v{ font-size:26px; }
     .verdict{ min-width:150px; font-size:16px; }
   }
+  /* ---- Large desktop: bigger type, cap very wide content for readability ---- */
+  @media (min-width:1280px){
+    .pf .val{ font-size:17px; }
+    .pf.big .val{ font-size:23px; }
+    .prow .l, .pf .lab{ font-size:15px; }
+  }
+
+  /* ---- Tabs ---- */
+  .tabs{ display:flex; gap:6px; background:#fff; margin:10px 10px 0; padding:5px;
+         border-radius:12px; box-shadow:0 1px 4px rgba(20,30,60,.06); }
+  .tabs button{ flex:1; padding:11px; border:none; background:transparent; border-radius:9px;
+         font-size:14px; font-weight:700; color:#556; font-family:inherit; }
+  .tabs button.active{ background:var(--navy); color:#fff; }
+  .page[hidden]{ display:none; }
+
+  /* ---- Performance input rows ---- */
+  .prow{ display:flex; align-items:center; gap:10px; padding:8px 2px; border-top:1px solid var(--line); }
+  .prow:first-child{ border-top:none; }
+  .prow .l{ flex:1; font-size:14px; color:#33415c; }
+  .prow .l small{ display:block; font-size:11px; color:var(--muted); }
+  .prow .i{ width:124px; flex:none; position:relative; }
+  .prow .i input{ text-align:right; padding:10px 32px 10px 8px; font-weight:600; width:100%; }
+  .prow .i input[readonly]{ background:#eef1f6; color:var(--ink); }
+  .prow .i .u{ position:absolute; right:9px; top:50%; transform:translateY(-50%);
+         font-size:11px; color:var(--muted); pointer-events:none; }
+  /* ---- Performance result rows ---- */
+  .pf{ display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+       padding:9px 2px; border-top:1px solid var(--line); font-size:14px; }
+  .pf:first-child{ border-top:none; }
+  .pf .lab{ color:#33415c; }
+  .pf .lab small{ display:block; font-size:11px; color:var(--muted); }
+  .pf .val{ font-weight:700; font-size:16px; text-align:right; white-space:nowrap; }
+  .pf .val small{ font-weight:600; font-size:11px; color:var(--muted); }
+  .pf.big .val{ font-size:21px; color:var(--navy); }
+  .pf.total{ border-top:2px solid var(--navy); }
+  .pillbox{ display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:800; }
+  .pillbox.ok{ background:var(--goodbg); color:var(--good); }
+  .pillbox.bad{ background:var(--badbg); color:var(--bad); }
+  .pending{ background:#fff8e6; border:1px solid #f0d68a; color:#8a6d1b; padding:10px 12px;
+       border-radius:10px; font-size:12.5px; margin:2px 2px 10px; line-height:1.4; }
+  .cat-toggle.compact button{ padding:8px 9px; font-size:13px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="title">C-172 Weight &amp; Balance</div>
+    <button class="fsbtn" id="fsbtn" onclick="toggleFull()">⛶ Full screen</button>
+    <div class="title">C-172 Flight Planner</div>
     <div class="sub">PIC must verify all data against the aircraft POH</div>
   </header>
 
+  <div class="tabs">
+    <button id="tabWb" class="active" onclick="setTab('wb')">Weight &amp; Balance</button>
+    <button id="tabPerf" onclick="setTab('perf')">Performance</button>
+  </div>
+
+  <div id="page-wb" class="page">
   <div class="cols">
   <div class="colL">
   <!-- Aircraft -->
@@ -208,10 +261,102 @@
   </section>
   </div><!-- /colR -->
   </div><!-- /cols -->
+  </div><!-- /page-wb -->
+
+  <!-- ============ PERFORMANCE PAGE ============ -->
+  <div id="page-perf" class="page" hidden>
+  <div class="cols">
+  <div class="colL">
+    <section>
+      <div class="sechead">Conditions</div>
+      <div class="chips">
+        <span class="chip" id="pf_acft">No aircraft</span>
+        <div class="cat-toggle" style="margin-left:auto">
+          <button id="pfBtnS" class="active" onclick="setPerfType('C172S')">C172S</button>
+          <button id="pfBtnR" onclick="setPerfType('C172R')">C172R</button>
+        </div>
+      </div>
+      <div class="prow"><div class="l">Takeoff weight<small>synced from W&amp;B</small></div>
+        <div class="i"><input id="pf_weight" readonly placeholder="—"><span class="u">lb</span></div></div>
+      <div class="prow"><div class="l">Field elevation</div>
+        <div class="i"><input id="pf_elev" inputmode="decimal" placeholder="0"><span class="u">ft</span></div></div>
+      <div class="prow"><div class="l">QNH</div>
+        <div class="cat-toggle" style="margin-right:8px"><button id="pfQnhHpa" class="active" onclick="setQnhUnit('hPa')">hPa</button><button id="pfQnhIn" onclick="setQnhUnit('inHg')">inHg</button></div>
+        <div class="i"><input id="pf_qnh" inputmode="decimal" placeholder="1013"><span class="u" id="pf_qnh_u">hPa</span></div></div>
+      <div class="prow"><div class="l">OAT (temperature)</div>
+        <div class="i"><input id="pf_oat" inputmode="decimal" placeholder="15"><span class="u">°C</span></div></div>
+      <div class="prow"><div class="l">Takeoff flaps<small>POH: only Up &amp; 10° approved for takeoff</small></div>
+        <div class="cat-toggle"><button id="pfTof10" class="active" onclick="setTofFlap('10')">10°</button><button id="pfTofUp" onclick="setTofFlap('up')">Up 0°</button></div></div>
+      <div class="prow"><div class="l">Landing flaps<small>full &amp; up are POH; 10°/20° interpolated</small></div>
+        <div class="cat-toggle compact"><button id="pfLdgFull" class="active" onclick="setLdgFlap('full')">Full</button><button id="pfLdg20" onclick="setLdgFlap('20')">20°</button><button id="pfLdg10" onclick="setLdgFlap('10')">10°</button><button id="pfLdgUp" onclick="setLdgFlap('up')">Up</button></div></div>
+    </section>
+    <section>
+      <div class="sechead">Runway &amp; Wind</div>
+      <div class="prow"><div class="l">Runway heading<small>e.g. RWY 24 → 240</small></div>
+        <div class="i"><input id="pf_rwy" inputmode="decimal" placeholder="0"><span class="u">°</span></div></div>
+      <div class="prow"><div class="l">Wind direction</div>
+        <div class="i"><input id="pf_wdir" inputmode="decimal" placeholder="0"><span class="u">°</span></div></div>
+      <div class="prow"><div class="l">Wind speed</div>
+        <div class="i"><input id="pf_wspd" inputmode="decimal" placeholder="0"><span class="u">kt</span></div></div>
+      <div class="prow"><div class="l">Runway surface<small>grass adds 15% TO / 45% LDG of ground roll</small></div>
+        <div class="cat-toggle"><button id="pfSurfPaved" class="active" onclick="setPerfSurface(false)">Paved</button><button id="pfSurfGrass" onclick="setPerfSurface(true)">Grass</button></div></div>
+    </section>
+    <section>
+      <div class="sechead">Fuel plan — inputs</div>
+      <div class="prow"><div class="l">Cruise fuel flow</div>
+        <div class="i"><input id="pf_gph" inputmode="decimal" placeholder="8.5"><span class="u">gph</span></div></div>
+      <div class="prow"><div class="l">Cruise groundspeed</div>
+        <div class="i"><input id="pf_gs" inputmode="decimal" placeholder="110"><span class="u">kt</span></div></div>
+      <div class="prow"><div class="l">Taxi fuel</div>
+        <div class="i"><input id="pf_taxi" inputmode="decimal" placeholder="1.1"><span class="u">gal</span></div></div>
+      <div class="prow"><div class="l">Trip distance</div>
+        <div class="i"><input id="pf_tripd" inputmode="decimal" placeholder="0"><span class="u">nm</span></div></div>
+      <div class="prow"><div class="l">Alternate distance</div>
+        <div class="i"><input id="pf_altd" inputmode="decimal" placeholder="0"><span class="u">nm</span></div></div>
+      <div class="prow"><div class="l">Fuel on board<small>synced from W&amp;B</small></div>
+        <div class="i"><input id="pf_onboard" readonly placeholder="—"><span class="u">gal</span></div></div>
+    </section>
+  </div>
+  <div class="colR">
+    <section>
+      <div class="sechead">Atmosphere</div>
+      <div class="pf big"><span class="lab">Pressure altitude</span><span class="val"><span id="pf_pa">—</span> <small>ft</small></span></div>
+      <div class="pf big"><span class="lab">Density altitude</span><span class="val"><span id="pf_da">—</span> <small>ft</small></span></div>
+      <div class="pf"><span class="lab">ISA deviation</span><span class="val"><span id="pf_isa">—</span> <small>°C</small></span></div>
+    </section>
+    <section>
+      <div class="sechead">Wind component</div>
+      <div class="pf big"><span class="lab" id="pf_hwlab">Head / Tailwind</span><span class="val"><span id="pf_hw">—</span> <small>kt</small></span></div>
+      <div class="pf"><span class="lab">Crosswind</span><span class="val"><span id="pf_xw">—</span> <small>kt</small></span></div>
+    </section>
+    <section>
+      <div class="sechead">Short-field takeoff &amp; landing distance</div>
+      <div class="pf big"><span class="lab">Takeoff — ground roll<small id="pf_to_cfg">flaps 10°, full throttle</small></span><span class="val"><span id="pf_to_gr">—</span> <small>ft</small></span></div>
+      <div class="pf"><span class="lab">Takeoff — over 50 ft obstacle</span><span class="val"><span id="pf_to_50">—</span> <small>ft</small></span></div>
+      <div class="pf big"><span class="lab">Landing — ground roll<small id="pf_ld_cfg">flaps full, max braking</small></span><span class="val"><span id="pf_ld_gr">—</span> <small>ft</small></span></div>
+      <div class="pf"><span class="lab">Landing — over 50 ft obstacle</span><span class="val"><span id="pf_ld_50">—</span> <small>ft</small></span></div>
+      <div class="foot" id="pf_distnote" style="margin:8px 2px 0">Enter conditions above to compute distances.</div>
+    </section>
+    <section>
+      <div class="sechead">Fuel required</div>
+      <div class="pf"><span class="lab">Taxi</span><span class="val"><span id="pf_f_taxi">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Trip<small id="pf_trip_t"></small></span><span class="val"><span id="pf_f_trip">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Contingency<small>5 min</small></span><span class="val"><span id="pf_f_cont">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Alternate<small id="pf_alt_t"></small></span><span class="val"><span id="pf_f_alt">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Final reserve<small>45 min</small></span><span class="val"><span id="pf_f_res">—</span> <small>gal</small></span></div>
+      <div class="pf total big"><span class="lab">Total required</span><span class="val"><span id="pf_f_total">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Fuel on board</span><span class="val"><span id="pf_f_ob">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Margin <span id="pf_f_badge" class="pillbox"></span></span><span class="val"><span id="pf_f_diff">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Endurance</span><span class="val"><span id="pf_f_end">—</span> <small>hr</small></span></div>
+    </section>
+    <p class="foot">Pressure altitude ≈ field elev + (1013 − QNH)×30 ft; density altitude ≈ PA + 120 ft per °C above ISA (standard rules of thumb). Fuel: contingency = 5 min, final reserve = 45 min at your cruise GPH; trip &amp; alternate = distance ÷ groundspeed × GPH. Verify everything against the POH and your ops manual.</p>
+  </div>
+  </div>
+  </div><!-- /page-perf -->
 </div>
 
 <!-- Sticky results -->
-<div class="resultbar">
+<div class="resultbar" id="wbResultbar">
   <div class="row">
     <div class="metric"><div class="k">Gross Wt</div><div class="v"><span id="r_wt">0</span> <small>lb</small></div></div>
     <div class="metric"><div class="k">C.G.</div><div class="v"><span id="r_cg">—</span> <small>in</small></div></div>
@@ -266,7 +411,8 @@ const STATIONS=[
   {id:"bag1", name:"Baggage #1",     sub:"max 120 lb · 95.0″", arm:95},
   {id:"bag2", name:"Baggage #2",     sub:"max 60 lb · 123.0″", arm:123},
 ];
-let currentType="C172S", category="normal", bewArm=0;
+let currentType="C172S", category="normal", bewArm=0, perfType="C172S", perfGrass=false,
+    qnhUnit="hPa", tofFlap="10", ldgFlap="full";
 function spec(){ return TYPE_SPEC[currentType]; }
 
 /* ---------- Build UI ---------- */
@@ -322,6 +468,7 @@ function onRegChange(){
   currentType=(ac&&ac.type)?ac.type:"C172S";
   document.getElementById("chipType").textContent="Type "+currentType.replace("C172","C-172");
   document.getElementById("chipHp").textContent=spec().hp+" HP";
+  perfType=currentType; updatePerfTypeButtons();
   const hasUtil=ac&&ac.utility;
   document.getElementById("btnUtility").disabled=!hasUtil;
   if(!hasUtil&&category==="utility") setCategory("normal",true);
@@ -389,6 +536,7 @@ function recalc(){
   if(errs.length===0) el.classList.add("hidden");
 
   drawChart(totW,cg,totW>0);
+  syncPerf(totW, num("fuel_gal"));
 }
 function toggleErrors(){ const el=document.getElementById("r_errs"); if(el.children.length) el.classList.toggle("hidden"); }
 
@@ -448,10 +596,236 @@ function resetForm(){
   recalc(); saveState();
 }
 
+/* ---------- Fullscreen ---------- */
+function toggleFull(){
+  const d=document.documentElement;
+  const req=d.requestFullscreen||d.webkitRequestFullscreen;
+  const exit=document.exitFullscreen||document.webkitExitFullscreen;
+  try{ if(!(document.fullscreenElement||document.webkitFullscreenElement)){ req.call(d); } else { exit.call(document); } }catch(e){}
+}
+function syncFsBtn(){
+  const on=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  const b=document.getElementById("fsbtn"); if(b) b.textContent = on ? "⤢ Exit full screen" : "⛶ Full screen";
+}
+document.addEventListener("fullscreenchange", syncFsBtn);
+document.addEventListener("webkitfullscreenchange", syncFsBtn);
+
+/* ---------- Performance ---------- */
+function setTxt(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+function setTab(t){
+  document.getElementById("page-wb").hidden = (t!=="wb");
+  document.getElementById("page-perf").hidden = (t!=="perf");
+  document.getElementById("tabWb").classList.toggle("active", t==="wb");
+  document.getElementById("tabPerf").classList.toggle("active", t==="perf");
+  document.getElementById("wbResultbar").style.display = (t==="wb")?"":"none";
+  try{ localStorage.setItem("c172tab", t); }catch(e){}
+  if(t==="perf") calcPerf();
+}
+function setPerfType(t){ perfType=t; updatePerfTypeButtons(); calcPerf(); savePerf(); }
+function updatePerfTypeButtons(){
+  const s=document.getElementById("pfBtnS"), r=document.getElementById("pfBtnR");
+  if(s) s.classList.toggle("active", perfType==="C172S");
+  if(r) r.classList.toggle("active", perfType==="C172R");
+}
+/* keep performance page in step with W&B (weight, fuel, aircraft) */
+function syncPerf(totW, gal){
+  const w=document.getElementById("pf_weight"); if(w) w.value = totW? Math.round(totW) : "";
+  const ob=document.getElementById("pf_onboard"); if(ob) ob.value = gal? gal : "";
+  const reg=document.getElementById("m_reg").value;
+  const ac=document.getElementById("pf_acft");
+  if(ac) ac.textContent = reg ? (reg+" · "+currentType.replace("C172","C-172")) : "No aircraft";
+  if(!document.getElementById("page-perf").hidden) calcPerf();
+}
+/* ===== POH SHORT-FIELD performance tables (transcribed from the C172S & C172R POH) =====
+   Rows = pressure altitude [0(SL),1000,…,8000] ; Cols = OAT [0,10,20,30,40 °C]
+   Each cell = [ground roll ft, total ft to clear 50-ft obstacle].  null = chart value deleted. */
+const PA_ROWS=[0,1000,2000,3000,4000,5000,6000,7000,8000];
+const OAT_COLS=[0,10,20,30,40];
+const PERF_DATA={
+  C172S:{
+    takeoff:{
+      2550:[[[860,1465],[925,1575],[995,1690],[1070,1810],[1150,1945]],[[940,1600],[1010,1720],[1090,1850],[1170,1990],[1260,2135]],[[1025,1755],[1110,1890],[1195,2035],[1285,2190],[1380,2355]],[[1125,1925],[1215,2080],[1310,2240],[1410,2420],[1515,2605]],[[1235,2120],[1335,2295],[1440,2480],[1550,2685],[1660,2880]],[[1355,2345],[1465,2545],[1585,2755],[1705,2975],[1825,3205]],[[1495,2605],[1615,2830],[1745,3075],[1875,3320],[2010,3585]],[[1645,2910],[1785,3170],[1920,3440],[2065,3730],[2215,4045]],[[1820,3265],[1970,3575],[2120,3880],[2280,4225],[2450,4615]]],
+      2400:[[[745,1275],[800,1370],[860,1470],[925,1570],[995,1685]],[[810,1390],[875,1495],[940,1605],[1010,1720],[1085,1845]],[[885,1520],[955,1635],[1030,1760],[1110,1890],[1190,2030]],[[970,1665],[1050,1795],[1130,1930],[1215,2080],[1305,2230]],[[1065,1830],[1150,1975],[1240,2130],[1335,2295],[1430,2455]],[[1170,2015],[1265,2180],[1360,2355],[1465,2530],[1570,2715]],[[1285,2230],[1390,2410],[1500,2610],[1610,2805],[1725,3015]],[[1415,2470],[1530,2685],[1650,2900],[1770,3125],[1900,3370]],[[1560,2755],[1690,3000],[1815,3240],[1950,3500],[2095,3790]]],
+      2200:[[[610,1055],[655,1130],[705,1205],[760,1290],[815,1380]],[[665,1145],[720,1230],[770,1315],[830,1410],[890,1505]],[[725,1250],[785,1340],[845,1435],[905,1540],[975,1650]],[[795,1365],[860,1465],[925,1570],[995,1685],[1065,1805]],[[870,1490],[940,1605],[1010,1725],[1090,1855],[1165,1975]],[[955,1635],[1030,1765],[1110,1900],[1195,2035],[1275,2175]],[[1050,1800],[1130,1940],[1220,2090],[1310,2240],[1400,2395]],[[1150,1985],[1245,2145],[1340,2305],[1435,2475],[1540,2650]],[[1270,2195],[1370,2375],[1475,2555],[1580,2745],[1695,2950]]]
+    },
+    landing:{
+      2550:[[[545,1290],[565,1320],[585,1350],[605,1380],[625,1415]],[[565,1320],[585,1350],[605,1385],[625,1420],[650,1450]],[[585,1355],[610,1385],[630,1420],[650,1455],[670,1490]],[[610,1385],[630,1425],[655,1460],[675,1495],[695,1530]],[[630,1425],[655,1460],[675,1495],[700,1535],[725,1570]],[[655,1460],[680,1500],[705,1535],[725,1575],[750,1615]],[[680,1500],[705,1540],[730,1580],[755,1620],[780,1660]],[[705,1545],[730,1585],[760,1625],[785,1665],[810,1705]],[[735,1585],[760,1630],[790,1670],[815,1715],[840,1755]]]
+    }
+  },
+  C172R:{
+    takeoff:{
+      2450:[[[845,1510],[910,1625],[980,1745],[1055,1875],[1135,2015]],[[925,1660],[1000,1790],[1075,1925],[1160,2070],[1245,2220]],[[1015,1830],[1095,1970],[1185,2125],[1275,2290],[1365,2455]],[[1115,2020],[1205,2185],[1305,2360],[1400,2540],[1505,2730]],[[1230,2245],[1330,2430],[1435,2630],[1545,2830],[1655,3045]],[[1355,2500],[1470,2715],[1585,2945],[1705,3175],[1830,3430]],[[1500,2805],[1625,3060],[1750,3315],[1880,3590],[2020,3895]],[[1660,3170],[1795,3470],[1935,3770],[2085,4105],[2240,4485]],[[1840,3620],[1995,3975],[2150,4345],[2315,4775],null]]
+    },
+    landing:{
+      2450:[[[525,1250],[540,1280],[560,1310],[580,1340],[600,1370]],[[545,1280],[560,1310],[580,1345],[600,1375],[620,1405]],[[565,1310],[585,1345],[605,1375],[625,1410],[645,1440]],[[585,1345],[605,1380],[625,1415],[650,1445],[670,1480]],[[605,1380],[630,1415],[650,1450],[670,1485],[695,1520]],[[630,1415],[650,1455],[675,1490],[700,1525],[720,1560]],[[655,1455],[675,1490],[700,1530],[725,1565],[750,1605]],[[680,1495],[705,1535],[730,1570],[755,1610],[775,1650]],[[705,1535],[730,1575],[755,1615],[780,1655],[810,1695]]]
+    }
+  }
+};
+function lerp(a,b,t){ return a+(b-a)*t; }
+function interpTable(tbl,pa,oat){
+  const p=Math.max(0,Math.min(8000,pa)), o=Math.max(0,Math.min(40,oat));
+  let i=0; while(i<PA_ROWS.length-1 && PA_ROWS[i+1]<=p) i++; if(i>=PA_ROWS.length-1) i=PA_ROWS.length-2;
+  let j=0; while(j<OAT_COLS.length-1 && OAT_COLS[j+1]<=o) j++; if(j>=OAT_COLS.length-1) j=OAT_COLS.length-2;
+  const tp=(p-PA_ROWS[i])/(PA_ROWS[i+1]-PA_ROWS[i]), to=(o-OAT_COLS[j])/(OAT_COLS[j+1]-OAT_COLS[j]);
+  const c00=tbl[i][j],c01=tbl[i][j+1],c10=tbl[i+1][j],c11=tbl[i+1][j+1];
+  if(!c00||!c01||!c10||!c11) return null;
+  return [0,1].map(k=>lerp(lerp(c00[k],c01[k],to),lerp(c10[k],c11[k],to),tp));
+}
+function perfDistance(model,kind,weight,pa,oat){
+  const set=PERF_DATA[model]&&PERF_DATA[model][kind]; if(!set) return null;
+  const ws=Object.keys(set).map(Number).sort((a,b)=>a-b);
+  if(ws.length===1) return interpTable(set[ws[0]],pa,oat);
+  const wq=Math.max(ws[0],Math.min(ws[ws.length-1],weight));
+  let i=0; while(i<ws.length-1 && ws[i+1]<=wq) i++; if(i>=ws.length-1) i=ws.length-2;
+  const r0=interpTable(set[ws[i]],pa,oat), r1=interpTable(set[ws[i+1]],pa,oat);
+  if(!r0||!r1) return null;
+  const tw=(wq-ws[i])/(ws[i+1]-ws[i]);
+  return [lerp(r0[0],r1[0],tw),lerp(r0[1],r1[1],tw)];
+}
+function applyCorrections(base,kind,headwind,grass){
+  if(!base) return null;
+  let gr=base[0], t=base[1];
+  if(headwind>=0){ const f=1-0.10*(headwind/9); gr*=f; t*=f; }
+  else { const f=1+0.10*((-headwind)/2); gr*=f; t*=f; }
+  if(grass){ const add=gr*((kind==="takeoff")?0.15:0.45); gr+=add; t+=add; }
+  return [gr,t];
+}
+function setPerfSurface(g){ perfGrass=g;
+  document.getElementById("pfSurfPaved").classList.toggle("active",!g);
+  document.getElementById("pfSurfGrass").classList.toggle("active",g);
+  calcPerf(); savePerf(); }
+const HPA_PER_INHG=33.8639;
+function setQnhUnit(u){
+  if(u===qnhUnit){ return; }
+  const el=document.getElementById("pf_qnh"), v=parseFloat(el.value);
+  if(!isNaN(v)) el.value = (u==="inHg") ? (v/HPA_PER_INHG).toFixed(2) : String(Math.round(v*HPA_PER_INHG));
+  qnhUnit=u;
+  document.getElementById("pfQnhHpa").classList.toggle("active",u==="hPa");
+  document.getElementById("pfQnhIn").classList.toggle("active",u==="inHg");
+  document.getElementById("pf_qnh_u").textContent=u;
+  document.getElementById("pf_qnh").placeholder=(u==="inHg")?"29.92":"1013";
+  calcPerf(); savePerf();
+}
+function setTofFlap(f){ tofFlap=f;
+  document.getElementById("pfTof10").classList.toggle("active",f==="10");
+  document.getElementById("pfTofUp").classList.toggle("active",f==="up");
+  calcPerf(); savePerf(); }
+function setLdgFlap(f){ ldgFlap=f;
+  document.getElementById("pfLdgFull").classList.toggle("active",f==="full");
+  document.getElementById("pfLdg20").classList.toggle("active",f==="20");
+  document.getElementById("pfLdg10").classList.toggle("active",f==="10");
+  document.getElementById("pfLdgUp").classList.toggle("active",f==="up");
+  calcPerf(); savePerf(); }
+
+function calcPerf(){
+  /* atmosphere */
+  const elev=num("pf_elev"), oat=num("pf_oat");
+  let qnhRaw=num("pf_qnh");
+  let qnh = (qnhUnit==="inHg") ? (qnhRaw? qnhRaw*HPA_PER_INHG : 1013.25) : (qnhRaw||1013.25); // always hPa
+  const pa = elev + (1013.25 - qnh)*30;
+  const isa = 15 - 1.98*(pa/1000);
+  const da  = pa + 120*(oat - isa);
+  const dev = oat - isa;
+  setTxt("pf_pa", fmt(pa,0)); setTxt("pf_da", fmt(da,0));
+  setTxt("pf_isa", (dev>=0?"+":"")+fmt(dev,1));
+  /* wind */
+  const rwy=num("pf_rwy"), wdir=num("pf_wdir"), wspd=num("pf_wspd");
+  const ang=(wdir - rwy)*Math.PI/180;
+  const hw=wspd*Math.cos(ang), xw=wspd*Math.sin(ang);
+  document.getElementById("pf_hwlab").textContent = hw>=0 ? "Headwind" : "Tailwind";
+  setTxt("pf_hw", wspd? fmt(Math.abs(hw),1) : "—");
+  setTxt("pf_xw", wspd? fmt(Math.abs(xw),1)+"  "+(xw>=0?"R":"L") : "—");
+  /* fuel */
+  const gph=num("pf_gph"), gs=num("pf_gs"), taxi=num("pf_taxi");
+  const tripd=num("pf_tripd"), altd=num("pf_altd"), onboard=num("pf_onboard");
+  const tripFuel=(gs>0)? gph*tripd/gs : 0;
+  const altFuel =(gs>0)? gph*altd/gs : 0;
+  const contFuel=gph*5/60, resFuel=gph*45/60;
+  const total=taxi+tripFuel+contFuel+altFuel+resFuel;
+  const G=(id,v)=> setTxt(id, gph? fmt(v,1) : "—");
+  G("pf_f_taxi",taxi); G("pf_f_trip",tripFuel); G("pf_f_cont",contFuel);
+  G("pf_f_alt",altFuel); G("pf_f_res",resFuel); G("pf_f_total",total);
+  setTxt("pf_f_ob", onboard? fmt(onboard,1) : "—");
+  setTxt("pf_trip_t", (gs>0&&tripd)? ` ${fmt(tripd/gs*60,0)} min @ ${fmt(gs,0)} kt` : "");
+  setTxt("pf_alt_t",  (gs>0&&altd)?  ` ${fmt(altd/gs*60,0)} min @ ${fmt(gs,0)} kt` : "");
+  const badge=document.getElementById("pf_f_badge"), diff=onboard-total;
+  if(gph && onboard){
+    setTxt("pf_f_diff",(diff>=0?"+":"")+fmt(diff,1));
+    badge.textContent=diff>=0?"ADEQUATE":"SHORT"; badge.className="pillbox "+(diff>=0?"ok":"bad");
+  } else { setTxt("pf_f_diff","—"); badge.textContent=""; badge.className="pillbox"; }
+  setTxt("pf_f_end", (gph>0&&onboard)? fmt(onboard/gph,1) : "—");
+  /* takeoff & landing distances */
+  const wt=num("pf_weight");
+  const apprUp = (perfType==="C172R") ? 7 : 9;             // flaps-up landing approach speed add (KIAS)
+  /* Flap factors:
+     TAKEOFF chart = 10°. POH: 10° saves ~10% vs UP, so UP = chart ÷ 0.9 (+11%). Only Up & 10° approved.
+     LANDING chart = full (30°). POH: flaps-UP = +35%. 10°/20° interpolated linearly by deflection. */
+  const tofFac = (tofFlap==="up") ? (1/0.9) : 1;
+  const ldgDefl = {full:30,"20":20,"10":10,up:0}[ldgFlap];
+  const ldgFac = 1 + 0.35*((30-ldgDefl)/30);
+  let toBase = perfDistance(perfType,"takeoff",wt,pa,oat);
+  if(toBase) toBase=[toBase[0]*tofFac, toBase[1]*tofFac];
+  const to = applyCorrections(toBase,"takeoff",hw,perfGrass);
+  let ldBase = perfDistance(perfType,"landing",wt,pa,oat);
+  if(ldBase) ldBase=[ldBase[0]*ldgFac, ldBase[1]*ldgFac];
+  const ld = applyCorrections(ldBase,"landing",hw,perfGrass);
+  const ft=v=> v==null? "—" : fmt(Math.round(v/5)*5,0);
+  setTxt("pf_to_gr", to?ft(to[0]):"—"); setTxt("pf_to_50", to?ft(to[1]):"—");
+  setTxt("pf_ld_gr", ld?ft(ld[0]):"—"); setTxt("pf_ld_50", ld?ft(ld[1]):"—");
+  setTxt("pf_to_cfg", (tofFlap==="10")?"flaps 10°, full throttle":`flaps up · +${Math.round((tofFac-1)*100)}% (POH)`);
+  let ldcfg;
+  if(ldgFlap==="full") ldcfg="flaps full (30°), max braking";
+  else if(ldgFlap==="up") ldcfg=`flaps up · +35% · approach +${apprUp} KIAS`;
+  else ldcfg=`flaps ${ldgFlap}° · +${Math.round((ldgFac-1)*100)}% (interpolated)`;
+  setTxt("pf_ld_cfg", ldcfg);
+  /* note + off-chart warnings */
+  const chartWt = perfType==="C172S" ? Math.max(2200,Math.min(2550,wt)) : 2450;
+  const warn=[];
+  if(pa>8000) warn.push("press. alt above 8000 ft (chart limit — clamped)");
+  if(oat>40)  warn.push("OAT above 40 °C (chart limit — clamped)");
+  if(oat<0)   warn.push("OAT below 0 °C (chart limit — clamped)");
+  if(perfType==="C172S" && wt>2550) warn.push("weight above 2550 lb (clamped)");
+  if(ldgFlap==="10"||ldgFlap==="20") warn.push(`landing flaps ${ldgFlap}° is interpolated (POH lists only full & up)`);
+  if(!toBase && wt) warn.push("takeoff condition off the published chart");
+  if(!ldBase && wt) warn.push("landing condition off the published chart");
+  if(hw<0 && -hw>10) warn.push("tailwind exceeds 10 kt — beyond chart");
+  let n="";
+  if(!wt){ n="Select an aircraft (weight syncs from W&B) and enter field elevation, QNH & OAT."; }
+  else {
+    const parts=["Short field", perfGrass?"dry grass":"paved, dry, level",
+      perfType==="C172S" ? `${fmt(chartWt,0)} lb` : "chart wt 2450 lb"];
+    if(wspd) parts.push(hw>=0 ? `${fmt(hw,0)} kt headwind` : `${fmt(-hw,0)} kt tailwind`);
+    parts.push(`TO flaps ${tofFlap==="10"?"10°":"up"}`);
+    parts.push(`LDG flaps ${ldgFlap==="full"?"full":ldgFlap==="up"?"up":ldgFlap+"°"}`);
+    n=parts.join(" · ")+". Verify against the POH.";
+    if(warn.length) n="⚠️ "+warn.join("; ")+".\n"+n;
+  }
+  const dn=document.getElementById("pf_distnote"); if(dn){ dn.textContent=n; dn.style.whiteSpace="pre-line"; }
+}
+const PERF_FIELDS=["pf_elev","pf_qnh","pf_oat","pf_rwy","pf_wdir","pf_wspd","pf_gph","pf_gs","pf_taxi","pf_tripd","pf_altd"];
+function savePerf(){ try{ const o={type:perfType,grass:perfGrass,qnhUnit,tofFlap,ldgFlap}; PERF_FIELDS.forEach(f=>o[f]=document.getElementById(f).value); localStorage.setItem("c172perf",JSON.stringify(o)); }catch(e){} }
+function loadPerf(){ try{ const o=JSON.parse(localStorage.getItem("c172perf")||"null"); if(!o) return;
+  PERF_FIELDS.forEach(f=>{ const e=document.getElementById(f); if(e&&o[f]!=null) e.value=o[f]; });
+  if(o.type) perfType=o.type;
+  if(o.qnhUnit==="inHg"){ qnhUnit="inHg";   /* stored pf_qnh value is already in inHg */
+    document.getElementById("pfQnhHpa").classList.remove("active");
+    document.getElementById("pfQnhIn").classList.add("active");
+    document.getElementById("pf_qnh_u").textContent="inHg";
+    document.getElementById("pf_qnh").placeholder="29.92"; }
+  if(o.tofFlap) setTofFlap(o.tofFlap);
+  if(o.ldgFlap) setLdgFlap(o.ldgFlap);
+  if(o.grass) setPerfSurface(true); }catch(e){} }
+
 /* ---------- Init ---------- */
 buildRegOptions(); buildStations();
 document.getElementById("m_date").valueAsDate=new Date();
-loadState(); recalc();
+loadState();
+loadPerf();
+document.querySelectorAll("#page-perf input").forEach(i=>i.addEventListener("input",()=>{ calcPerf(); savePerf(); }));
+if(!(document.fullscreenEnabled||document.webkitFullscreenEnabled)){ const b=document.getElementById("fsbtn"); if(b) b.style.display="none"; }
+updatePerfTypeButtons();
+recalc();
+try{ if(localStorage.getItem("c172tab")==="perf") setTab("perf"); }catch(e){}
 
 /* PWA service worker */
 if("serviceWorker" in navigator){
