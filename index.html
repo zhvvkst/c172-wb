@@ -313,6 +313,8 @@
         <div class="cat-toggle compact"><button id="pfTripDist" class="active" onclick="setTripMode('dist')">nm</button><button id="pfTripGal" onclick="setTripMode('gal')">gal</button><button id="pfTripTime" onclick="setTripMode('time')">min</button></div></div>
       <div class="prow"><div class="l"><span id="pf_trip_lmain">Trip distance</span></div>
         <div class="i"><input id="pf_trip" inputmode="decimal" placeholder="0"><span class="u" id="pf_trip_u">nm</span></div></div>
+      <div class="prow"><div class="l">Contingency<small>5 min GPH, 5 min trip, or 5% trip</small></div>
+        <div class="cat-toggle compact"><button id="pfCont1" class="active" onclick="setContMode('5min_gph')">5m gph</button><button id="pfCont2" onclick="setContMode('5min_trip')">5m trip</button><button id="pfCont3" onclick="setContMode('5pct')">5% trip</button></div></div>
       <div class="prow"><div class="l">Alternate distance</div>
         <div class="i"><input id="pf_altd" inputmode="decimal" placeholder="0"><span class="u">nm</span></div></div>
       <div class="prow"><div class="l">Fuel on board<small>synced from W&amp;B</small></div>
@@ -343,7 +345,7 @@
       <div class="sechead">Fuel required</div>
       <div class="pf"><span class="lab">Taxi</span><span class="val"><span id="pf_f_taxi">—</span> <small>gal</small></span></div>
       <div class="pf"><span class="lab">Trip<small id="pf_trip_t"></small></span><span class="val"><span id="pf_f_trip">—</span> <small>gal</small></span></div>
-      <div class="pf"><span class="lab">Contingency<small>5 min</small></span><span class="val"><span id="pf_f_cont">—</span> <small>gal</small></span></div>
+      <div class="pf"><span class="lab">Contingency<small id="pf_cont_lbl">5 min @ GPH</small></span><span class="val"><span id="pf_f_cont">—</span> <small>gal</small></span></div>
       <div class="pf"><span class="lab">Alternate<small id="pf_alt_t"></small></span><span class="val"><span id="pf_f_alt">—</span> <small>gal</small></span></div>
       <div class="pf"><span class="lab">Final reserve<small>45 min</small></span><span class="val"><span id="pf_f_res">—</span> <small>gal</small></span></div>
       <div class="pf total big"><span class="lab">Total required</span><span class="val"><span id="pf_f_total">—</span> <small>gal</small></span></div>
@@ -414,7 +416,7 @@ const STATIONS=[
   {id:"bag2", name:"Baggage #2",     sub:"max 60 lb · 123.0″", arm:123},
 ];
 let currentType="C172S", category="normal", bewArm=0, perfType="C172S", perfGrass=false,
-    qnhUnit="hPa", tofFlap="10", ldgFlap="full", tripMode="dist";
+    qnhUnit="hPa", tofFlap="10", ldgFlap="full", tripMode="dist", contMode="5min_gph";
 function spec(){ return TYPE_SPEC[currentType]; }
 
 /* ---------- Build UI ---------- */
@@ -731,6 +733,11 @@ function setTripMode(m){
   document.getElementById("pf_trip_u").textContent=map[m][1];
   calcPerf(); savePerf();
 }
+function setContMode(m){ contMode=m;
+  document.getElementById("pfCont1").classList.toggle("active",m==="5min_gph");
+  document.getElementById("pfCont2").classList.toggle("active",m==="5min_trip");
+  document.getElementById("pfCont3").classList.toggle("active",m==="5pct");
+  calcPerf(); savePerf(); }
 function setLdgFlap(f){ ldgFlap=f;
   document.getElementById("pfLdgFull").classList.toggle("active",f==="full");
   document.getElementById("pfLdg20").classList.toggle("active",f==="20");
@@ -765,24 +772,29 @@ function calcPerf(){
   else if(tripMode==="time"){ tripMin=tripIn; tripFuel=gph*tripIn/60; tripNm=tripIn/60*gs; }
   else { tripNm=tripIn; tripFuel=(gs>0)?gph*tripIn/gs:0; tripMin=(gs>0)?tripIn/gs*60:0; }
   const altFuel =(gs>0)? gph*altd/gs : 0;
-  const contFuel=gph*5/60, resFuel=gph*45/60;
+  let contFuel;
+  if(contMode==="5pct") contFuel=tripFuel*0.05;                       // 5% of trip fuel
+  else if(contMode==="5min_trip") contFuel=tripFuel*(5/60);           // 5/60 of trip fuel (= 8.33%)
+  else contFuel=gph*5/60;                                             // 5 min at cruise GPH (default)
+  setTxt("pf_cont_lbl", contMode==="5pct"?"5% of trip":contMode==="5min_trip"?"5 min of trip":"5 min @ GPH");
+  const resFuel=gph*45/60;
   const total=taxi+tripFuel+contFuel+altFuel+resFuel;
-  const G=(id,v)=> setTxt(id, gph? fmt(v,1) : "—");
+  const G=(id,v)=> setTxt(id, gph? fmt(v,2) : "—");
   G("pf_f_taxi",taxi); G("pf_f_trip",tripFuel); G("pf_f_cont",contFuel);
   G("pf_f_alt",altFuel); G("pf_f_res",resFuel); G("pf_f_total",total);
-  setTxt("pf_f_ob", onboard? fmt(onboard,1) : "—");
+  setTxt("pf_f_ob", onboard? fmt(onboard,2) : "—");
   /* trip detail: show the values NOT entered */
   let td="";
   if(tripIn){
     if(tripMode==="dist") td=(gs>0)? ` ${fmt(tripMin,0)} min @ ${fmt(gs,0)} kt` : "";
     else if(tripMode==="gal") td=(gph>0)? ` ${fmt(tripMin,0)} min`+(gs>0?` · ${fmt(tripNm,0)} nm`:"") : "";
-    else td=(gs>0)? ` ${fmt(tripNm,0)} nm @ ${fmt(gs,0)} kt` : ` ${fmt(tripFuel,1)} gal`;
+    else td=(gs>0)? ` ${fmt(tripNm,0)} nm @ ${fmt(gs,0)} kt` : ` ${fmt(tripFuel,2)} gal`;
   }
   setTxt("pf_trip_t", td);
   setTxt("pf_alt_t",  (gs>0&&altd)?  ` ${fmt(altd/gs*60,0)} min @ ${fmt(gs,0)} kt` : "");
   const badge=document.getElementById("pf_f_badge"), diff=onboard-total;
   if(gph && onboard){
-    setTxt("pf_f_diff",(diff>=0?"+":"")+fmt(diff,1));
+    setTxt("pf_f_diff",(diff>=0?"+":"")+fmt(diff,2));
     badge.textContent=diff>=0?"ADEQUATE":"SHORT"; badge.className="pillbox "+(diff>=0?"ok":"bad");
   } else { setTxt("pf_f_diff","—"); badge.textContent=""; badge.className="pillbox"; }
   setTxt("pf_f_end", (gph>0&&onboard)? fmt(onboard/gph,1) : "—");
@@ -835,7 +847,7 @@ function calcPerf(){
   const dn=document.getElementById("pf_distnote"); if(dn){ dn.textContent=n; dn.style.whiteSpace="pre-line"; }
 }
 const PERF_FIELDS=["pf_elev","pf_qnh","pf_oat","pf_rwy","pf_wdir","pf_wspd","pf_gph","pf_gs","pf_taxi","pf_trip","pf_altd"];
-function savePerf(){ try{ const o={type:perfType,grass:perfGrass,qnhUnit,tofFlap,ldgFlap,tripMode}; PERF_FIELDS.forEach(f=>o[f]=document.getElementById(f).value); localStorage.setItem("c172perf",JSON.stringify(o)); }catch(e){} }
+function savePerf(){ try{ const o={type:perfType,grass:perfGrass,qnhUnit,tofFlap,ldgFlap,tripMode,contMode}; PERF_FIELDS.forEach(f=>o[f]=document.getElementById(f).value); localStorage.setItem("c172perf",JSON.stringify(o)); }catch(e){} }
 function loadPerf(){ try{ const o=JSON.parse(localStorage.getItem("c172perf")||"null"); if(!o) return;
   PERF_FIELDS.forEach(f=>{ const e=document.getElementById(f); if(e&&o[f]!=null) e.value=o[f]; });
   if(o.type) perfType=o.type;
@@ -846,6 +858,7 @@ function loadPerf(){ try{ const o=JSON.parse(localStorage.getItem("c172perf")||"
     document.getElementById("pf_qnh").placeholder="29.92"; }
   if(o.tofFlap) setTofFlap(o.tofFlap);
   if(o.ldgFlap) setLdgFlap(o.ldgFlap);
+  if(o.contMode) setContMode(o.contMode);
   if(o.tripMode && o.tripMode!=="dist"){   /* set mode without converting the restored value */
     tripMode=o.tripMode;
     document.getElementById("pfTripDist").classList.toggle("active",tripMode==="dist");
